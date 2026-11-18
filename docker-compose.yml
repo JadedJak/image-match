@@ -1,0 +1,79 @@
+services:
+  imgmatch-general:
+    build: .
+    image: image-match:latest
+    environment:
+      - CATEGORY=general
+      - SOURCE_DIR=/data/source
+      - INDEX_DIR=/data/index
+      - PROXY_DIR=/data/proxy
+      - DEVICE=cuda
+      - UI_PORT=7860
+      - MAX_SIDE=${MAX_SIDE:-512}
+      - IO_WORKERS=${IO_WORKERS:-8}
+      - BATCH_SIZE=${BATCH_SIZE:-32}
+      - PROXY_QUALITY=${PROXY_QUALITY:-85}
+      - UI_ENGINE=${UI_ENGINE:-nicegui}
+      - MATCH_INPUT_DIR=/data/match-input
+      - MATCH_OUTPUT_DIR=/data/match-output
+      - MATCH_SIMILARITY_THRESHOLD=${MATCH_SIMILARITY_THRESHOLD:-0.90}
+    volumes:
+      - ${SOURCE_DIR_GENERAL}:/data/source  # read-write -- the UI's delete-to-trash feature needs to move files within this volume
+      - ${INDEX_DIR_GENERAL}:/data/index
+      - ${PROXY_DIR_GENERAL:-./proxy-cache/general}:/data/proxy
+      - ${HF_CACHE_DIR:-./hf-cache}:/opt/hf-cache:ro
+      - ${MATCH_INPUT_DIR_GENERAL:-./match-input/general}:/data/match-input
+      - ${MATCH_OUTPUT_DIR_GENERAL:-./match-output/general}:/data/match-output
+    ports:
+      # Bind to your Tailscale IP (e.g. 100.x.x.x:7860:7860) once ready to
+      # expose to the tailnet; 0.0.0.0 also reaches the LAN, not just Tailscale.
+      - "${GENERAL_BIND_HOST:-0.0.0.0}:7860:7860"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  imgmatch-personal:
+    build: .
+    image: image-match:latest
+    environment:
+      - CATEGORY=personal
+      - SOURCE_DIR=/data/source
+      - INDEX_DIR=/data/index
+      - PROXY_DIR=/data/proxy
+      - DEVICE=cuda
+      - UI_PORT=7860
+      - MAX_SIDE=${MAX_SIDE:-512}
+      - IO_WORKERS=${IO_WORKERS:-8}
+      - BATCH_SIZE=${BATCH_SIZE:-32}
+      - PROXY_QUALITY=${PROXY_QUALITY:-85}
+      - UI_ENGINE=${UI_ENGINE:-nicegui}
+      - MATCH_INPUT_DIR=/data/match-input
+      - MATCH_OUTPUT_DIR=/data/match-output
+      - MATCH_SIMILARITY_THRESHOLD=${MATCH_SIMILARITY_THRESHOLD:-0.90}
+    volumes:
+      - ${SOURCE_DIR_PERSONAL}:/data/source  # read-write -- see the general service's comment above
+      - ${INDEX_DIR_PERSONAL}:/data/index
+      - ${PROXY_DIR_PERSONAL:-./proxy-cache/personal}:/data/proxy
+      - ${HF_CACHE_DIR:-./hf-cache}:/opt/hf-cache:ro
+      - ${MATCH_INPUT_DIR_PERSONAL:-./match-input/personal}:/data/match-input
+      - ${MATCH_OUTPUT_DIR_PERSONAL:-./match-output/personal}:/data/match-output
+    ports:
+      # Was hardcoded 127.0.0.1-only (loopback, not reachable off this
+      # machine at all) -- now configurable like general's bind host, since
+      # there's still no auth layer in front of this UI. Whoever can reach
+      # the port has full search + delete access to this catalog, so treat
+      # PERSONAL_BIND_HOST the same as GENERAL_BIND_HOST's warning: your
+      # Tailscale IP is safer than 0.0.0.0, which is also reachable on the LAN.
+      - "${PERSONAL_BIND_HOST:-127.0.0.1}:7861:7860"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+

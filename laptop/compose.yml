@@ -1,0 +1,73 @@
+# Laptop (Fedora + rootless Podman, no NVIDIA GPU) version of
+# ../docker-compose.yml -- same general/personal catalogs, same ports, run
+# against the laptop's own files. Use via laptop/image-match.sh, or
+# `podman compose` from this folder. Catalogs are independent of the home
+# ones: to move photos between machines, copy the original files and run
+# the indexer on the receiving side.
+#
+# Differences from the Windows compose: Intel GPU instead of CUDA
+# (Containerfile, /dev/dri passed in, DEVICE=xpu, PRECISION=fp16 -- 4x faster
+# than fp32 on the B390 and half the memory), and :z on every
+# mount -- Fedora's SELinux blocks container access to host folders without
+# it (shared label, since hf-cache is used by both). :z needs a filesystem
+# with xattr support (ext4/btrfs), not exFAT/NTFS -- including inside a
+# VeraCrypt volume.
+#
+# Unlike Docker Desktop, Podman fails loudly if a host folder is missing
+# instead of silently creating an empty one -- so an unmounted volume
+# shows up as an error, not as an empty catalog.
+
+x-common: &common
+  build:
+    context: ..
+    dockerfile: laptop/Containerfile
+  image: localhost/image-match-xpu:latest
+  devices:
+    - /dev/dri
+
+x-env: &env
+  SOURCE_DIR: /data/source
+  INDEX_DIR: /data/index
+  PROXY_DIR: /data/proxy
+  DEVICE: ${DEVICE:-xpu}
+  PRECISION: ${PRECISION:-fp16}
+  UI_PORT: "7860"
+  MAX_SIDE: ${MAX_SIDE:-512}
+  IO_WORKERS: ${IO_WORKERS:-8}
+  BATCH_SIZE: ${BATCH_SIZE:-16}
+  PROXY_QUALITY: ${PROXY_QUALITY:-85}
+  UI_ENGINE: ${UI_ENGINE:-nicegui}
+  MATCH_INPUT_DIR: /data/match-input
+  MATCH_OUTPUT_DIR: /data/match-output
+  MATCH_SIMILARITY_THRESHOLD: ${MATCH_SIMILARITY_THRESHOLD:-0.90}
+
+services:
+  imgmatch-general:
+    <<: *common
+    environment:
+      <<: *env
+      CATEGORY: general
+    volumes:
+      - ${SOURCE_DIR_GENERAL:?set in laptop/.env}:/data/source:z  # read-write -- move-to-trash needs it
+      - ${INDEX_DIR_GENERAL:?set in laptop/.env}:/data/index:z
+      - ${PROXY_DIR_GENERAL:?set in laptop/.env}:/data/proxy:z
+      - ${HF_CACHE_DIR:?set in laptop/.env}:/opt/hf-cache:ro,z
+      - ${MATCH_INPUT_DIR_GENERAL:-./match-input/general}:/data/match-input:z
+      - ${MATCH_OUTPUT_DIR_GENERAL:-./match-output/general}:/data/match-output:z
+    ports:
+      - "${GENERAL_BIND_HOST:-127.0.0.1}:7860:7860"
+
+  imgmatch-personal:
+    <<: *common
+    environment:
+      <<: *env
+      CATEGORY: personal
+    volumes:
+      - ${SOURCE_DIR_PERSONAL:?set in laptop/.env}:/data/source:z
+      - ${INDEX_DIR_PERSONAL:?set in laptop/.env}:/data/index:z
+      - ${PROXY_DIR_PERSONAL:?set in laptop/.env}:/data/proxy:z
+      - ${HF_CACHE_DIR}:/opt/hf-cache:ro,z
+      - ${MATCH_INPUT_DIR_PERSONAL:-./match-input/personal}:/data/match-input:z
+      - ${MATCH_OUTPUT_DIR_PERSONAL:-./match-output/personal}:/data/match-output:z
+    ports:
+      - "${PERSONAL_BIND_HOST:-127.0.0.1}:7861:7860"

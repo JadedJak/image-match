@@ -1,0 +1,21 @@
+open-clip-torch==2.24.0
+faiss-cpu==1.8.0
+Pillow==10.4.0
+ImageHash==4.3.1
+# gradio==4.44.0 (the original pin) is old enough now that its whole web
+# stack (fastapi/starlette/pydantic/jinja2/huggingface_hub) has drifted
+# incompatibly out from under it when everything else is left unpinned --
+# hit three separate transitive-dep crashes (HfFolder removed, pydantic's
+# bool-schema change, starlette's TemplateResponse signature change) one
+# at a time. Floor-pinning to a current 5.x release instead lets gradio's
+# own maintainers' dependency pins do the compatibility work, since they're
+# tested against what's actually current, not chased leaf-dep by leaf-dep.
+gradio>=5,<6
+# Primary UI now -- real per-element click/dblclick events and a native
+# scroll_area.scroll_to(), instead of Gradio's js= escape hatch (which
+# repeatedly failed to fire reliably for exactly this kind of fine-grained
+# interactivity). Floor-pinned, not exact, for the same reason as gradio
+# above -- let NiceGUI's own maintainers' dependency pins do the
+# compatibility work.
+nicegui>=1.4,<3
+numpy<2

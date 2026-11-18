@@ -1,0 +1,40 @@
+# Laptop image: Intel GPU (XPU) build for the Arc B390. Falls back to CPU by
+# itself if the GPU isn't visible (DEVICE=xpu -> cpu), so there's no separate
+# CPU-only image. Benchmarked 2026-11-05 on 300 photos, model-only: CPU 1.7
+# img/s, XPU fp32 11.8, XPU fp16 45.6 (99.7% identical top-10 search results).
+#
+# Fedora base, not Debian:
+# PyTorch's XPU wheels use the system's Intel compute runtime / Level Zero
+# GPU driver, and Debian's are too old for Panther Lake. Fedora 44 gives the
+# container the same runtime versions the host already runs (OpenCL and
+# Ollama verified on it). Needs /dev/dri passed in (see compose.yml).
+#
+# Python 3.12, not Fedora's default 3.14: faiss-cpu 1.8.0 and numpy<2 (from
+# requirements.txt) have no 3.14 wheels.
+FROM registry.fedoraproject.org/fedora:44
+
+RUN dnf install -y --setopt=install_weak_deps=False \
+        python3.12 \
+        intel-compute-runtime intel-level-zero oneapi-level-zero \
+        mesa-libGL glib2 \
+    && dnf clean all
+
+RUN python3.12 -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir torch torchvision \
+    --index-url https://download.pytorch.org/whl/xpu
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app ./app
+
+ENV PYTHONUNBUFFERED=1
+ENV HF_HOME=/opt/hf-cache
+ENV HF_HUB_OFFLINE=1
+EXPOSE 7860
+
+CMD ["python", "-m", "app.main"]

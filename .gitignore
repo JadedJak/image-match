@@ -1,0 +1,16 @@
+# Real config (has local paths / bind IPs) -- only the .env.example files are tracked
+.env
+laptop/.env
+# Python
+__pycache__/
+*.pyc
+# Runtime data -- never commit catalogs, indexes, proxies or model weights
+hf-cache/
+index*/
+proxy*/
+*.faiss
+*.faiss.bak
+*.db
+*.sqlite
+# Machine-specific notes for Claude (hostnames, IPs, local setup) -- kept local
+CLAUDE.md
